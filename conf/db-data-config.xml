@@ -11,7 +11,8 @@
 		from
 			stamm_gesamt
 		where
-			stamm_mainprod_header = 1 
+			stamm_mainprod_header = 1 and
+			stamm_match_code <> '0'
 		group by
 			stamm_match_code
 		order by
@@ -161,116 +162,77 @@ SELECT
 	MASTER_VDATUM as MASTER_VDATUM,
 	ARTIST_ID,
 	sm_master_artist_link.MODIFICATION_DATE as AI_MODDATE,
-	case
-		when
-			(
-				stamm_landid = 1054 and
-				stamm_ag_audio_video = 'A' and
-				stamm_ag_main_format = 'L' and
-				length(stamm_match_code) < 12 and
-				stamm_comp = '1' and
-				stamm_wg_header_code in (10100, 10200) and
-				stamm_wg_code not in (10112, 10124)
-			)
-		then
-			'Compilation'
-		when
-			(
-				stamm_landid <> 1054 and
-				stamm_ag_audio_video = 'A' and
-				stamm_ag_main_format = 'L' and
-				stamm_comp = '1'
-			)
-		then
-			'Compilation'
-		when
-			(
-				stamm_landid = '1054' and
-				stamm_ag_main_format = 'L'
-			)
-		then
-			'Album'
-		when
-			(
-				stamm_landid = '1108' and
-				stamm_ag_main_format = 'L' and
-				stamm_ag_audio_video = 'A'
-			)
-		then
-			'Album'
-		when
-			(
-				stamm_landid <> '1054' and
-				stamm_landid <> '1108' and
-				stamm_ag_main_format = 'L' and
-				stamm_ag_audio_video = 'A' and
-				stamm_comp <> '1'
-			)
-		then
-			'Album'
-		when
-			(
-				stamm_ag_audio_video = 'A' and
-				stamm_ag_main_format = 'L'
-			)
-		then
-			'Album'
-		when
-			(
-				stamm_landid = 1054 and
-				stamm_ag_main_format = 'S' and
-				stamm_ag_audio_video in ('A', 'V') and
-				stamm_wg_header_code in (10100, 10200) and
-				stamm_wg_code not in (10112, 10124)
-			)
-		then
-			'Single'
-		when
-			(
-				stamm_landid <> 1054 and
-				stamm_ag_main_format = 'S' and
-				stamm_ag_audio_video in ('A', 'V')
-			)
-		then
-			'Single'
-		when
-			(
-				stamm_landid = 1054 and
-				stamm_ag_audio_video = 'V' and
-				length(stamm_gesamt.stamm_match_code) < 12 and
-				stamm_wg_header_code in (10100, 10200) and
-				stamm_wg_code not in (10112, 10124)
-			)
-		then
-			'DVD'
-		when
-			(
-				stamm_landid <> 1054 and
-				stamm_ag_audio_video = 'V'
-			)
-		then
-			'DVD'
-		when
-			(
-				stamm_landid = 1054 and
-				stamm_ag_main_format = 'L' and
-				stamm_ag_audio_video in ('A', 'V') and
-				length(stamm_gesamt.stamm_match_code) < 12 and
-				stamm_comp <> '1' and
-				stamm_wg_header_code in (10100, 10200) and
-				stamm_wg_code not in (10112, 10124)
-			)
-		then
-			'Album'
-		when
-			(
-				stamm_landid <> 1054 and
-				stamm_ag_main_format = 'L' and
-				stamm_ag_audio_video in ('A', 'V')
-			)
-		then
-			'Album'
-	end as criteria
+	CASE
+        WHEN
+            (
+                stamm_ag_main_format = 'L' AND
+                stamm_ag_audio_video = 'A' AND
+                stamm_comp = '1' AND
+                (
+                    (
+                        stamm_landid = 1054 AND
+                        length(stamm_gesamt.stamm_match_code) < 12 AND
+                        stamm_wg_header_code in (10100, 10200) AND
+                        stamm_wg_code not in (10112, 10124)
+                    )
+                    OR
+                    (
+                        stamm_landid <> 1054
+                    )
+                )
+            )
+        THEN 'Compilation'
+        WHEN
+            (
+                stamm_ag_main_format = 'L' AND
+                (
+                    (
+                        stamm_landid = 1054
+                    )
+                    OR
+                    (
+                        stamm_landid <> 1054 AND
+                        stamm_ag_audio_video = 'A' AND
+                        stamm_comp <> '1'
+                    )
+                )
+            )
+        THEN 'Album'
+        WHEN
+            (
+                stamm_ag_main_format = 'S' AND
+                stamm_ag_audio_video in ('A', 'V') AND
+                (
+                    (
+                        stamm_landid = 1054 AND
+                        stamm_wg_header_code in (10100, 10200) AND
+                        stamm_wg_code not in (10112, 10124)
+                    )
+                    OR
+                    (
+                        stamm_landid <> 1054
+                    )
+                )
+            )
+        THEN 'Single'
+        WHEN
+            (
+                stamm_ag_audio_video = 'V' AND
+                (
+                    (
+                        stamm_landid = 1054 AND
+                        stamm_wg_header_code in (10100, 10200) AND
+                        stamm_wg_code not in (10112, 10124)
+                    )
+                    OR
+                    (
+                        stamm_landid <> 1054
+                    )
+                )
+            )
+        THEN 'DVD'
+        ELSE 'Unknown'
+    END as criteria
 FROM
 	STAMM_GESAMT,
 	LAND,
@@ -285,6 +247,7 @@ WHERE
 	stamm_match_code = master_matchcode(+) and
 	stamm_eancid = item_type(+) || TO_CHAR(item_id(+)) and
 	STAMM_EANC NOT LIKE 'XX_%' AND
+	stamm_match_code <> '0'AND
 	(
 		'${dataimporter.request.clean}' != 'false' OR
 		STAMM_GESAMT.MODIFICATION_DATE > '${dataimporter.last_index_time}' OR
